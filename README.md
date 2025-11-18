@@ -1,59 +1,272 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Instagram Downloader
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Một website đơn giản và hiện đại cho phép tải xuống nội dung từ Instagram bao gồm: ảnh, video, reels và stories.
 
-## About Laravel
+![Instagram Downloader](https://img.shields.io/badge/Laravel-12-FF2D20?style=flat&logo=laravel)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38B2AC?style=flat&logo=tailwind-css)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## ✨ Tính năng
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- 📸 **Tải ảnh**: Hỗ trợ tải đơn ảnh và album nhiều ảnh
+- 🎬 **Tải video**: Tải video và IGTV
+- 🎥 **Tải Reels**: Hỗ trợ tải Instagram Reels
+- 📖 **Tải Stories**: Tải stories từ Instagram
+- 🚀 **Nhanh chóng**: Xử lý nhanh, không lưu trữ trên server
+- 🔒 **An toàn**: Không lưu trữ dữ liệu người dùng
+- 📱 **Responsive**: Giao diện tương thích mọi thiết bị
+- 🎨 **Hiện đại**: UI/UX đẹp mắt với Tailwind CSS
+- 💰 **Tích hợp Ads**: Vị trí quảng cáo không gây phiền nhiễu
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 🛠️ Công nghệ sử dụng
 
-## Learning Laravel
+- **Backend**: Laravel 12 (PHP 8.2+)
+- **Frontend**: Vanilla JavaScript + Tailwind CSS 4.0
+- **Build Tool**: Vite 7
+- **HTTP Client**: Guzzle
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 📋 Yêu cầu hệ thống
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- PHP >= 8.2
+- Composer
+- Node.js >= 18.x
+- NPM hoặc Yarn
 
-## Laravel Sponsors
+## 🚀 Cài đặt
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### 1. Clone repository
 
-### Premium Partners
+```bash
+git clone <repository-url>
+cd igluckya
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### 2. Cài đặt dependencies
 
-## Contributing
+```bash
+composer install
+npm install
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 3. Cấu hình môi trường
 
-## Code of Conduct
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 4. Cấu hình database (tùy chọn)
 
-## Security Vulnerabilities
+Mặc định project sử dụng SQLite. Nếu muốn sử dụng database khác, cập nhật file `.env`:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=instagram_downloader
+DB_USERNAME=root
+DB_PASSWORD=
+```
 
-## License
+### 5. Chạy migrations
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan migrate
+```
+
+### 6. Build assets
+
+```bash
+npm run build
+```
+
+Hoặc chạy development server:
+
+```bash
+npm run dev
+```
+
+### 7. Chạy ứng dụng
+
+```bash
+php artisan serve
+```
+
+Truy cập: `http://localhost:8000`
+
+## 🔧 Development
+
+### Chạy tất cả services cùng lúc
+
+```bash
+composer dev
+```
+
+Lệnh này sẽ chạy đồng thời:
+- Laravel development server
+- Queue worker
+- Vite development server
+
+### Build production
+
+```bash
+npm run build
+```
+
+### Chạy tests
+
+```bash
+composer test
+```
+
+## 📁 Cấu trúc dự án
+
+```
+igluckya/
+├── app/
+│   └── Http/
+│       └── Controllers/
+│           └── InstagramController.php  # Controller xử lý Instagram
+├── resources/
+│   ├── css/
+│   │   └── app.css                      # Tailwind CSS
+│   ├── js/
+│   │   └── app.js                       # JavaScript logic
+│   └── views/
+│       └── instagram-downloader.blade.php  # Main view
+├── routes/
+│   └── web.php                          # Routes definition
+└── public/
+    └── build/                           # Compiled assets
+```
+
+## 🎯 Cách sử dụng
+
+1. Mở website
+2. Nhập link Instagram (post, reel, video, hoặc story)
+3. Nhấn "Tìm kiếm nội dung"
+4. Xem preview và chọn nội dung cần tải
+5. Nhấn "Tải xuống" để download
+
+### Định dạng URL được hỗ trợ
+
+- Posts: `https://www.instagram.com/p/XXXXX/`
+- Reels: `https://www.instagram.com/reel/XXXXX/`
+- Videos: `https://www.instagram.com/tv/XXXXX/`
+- Stories: `https://www.instagram.com/stories/username/XXXXX/`
+
+## 🎨 Tích hợp quảng cáo
+
+Website có sẵn các vị trí quảng cáo:
+
+1. **Header Ad** (728x90): Phía trên header
+2. **Sidebar Ad** (160x600): Bên phải (chỉ desktop)
+3. **Bottom Ad** (728x90): Dưới kết quả
+
+Để tích hợp quảng cáo thực tế (Google AdSense, etc.), cập nhật các placeholder trong file:
+- `resources/views/instagram-downloader.blade.php`
+
+Tìm các div với id:
+- `#header-ad`
+- `.sidebar-ad` (trong class `fixed right-4`)
+- Bottom ad section (sau `#media-container`)
+
+## 🔐 Bảo mật
+
+- ✅ CSRF Protection được kích hoạt
+- ✅ Input validation
+- ✅ Không lưu trữ content trên server
+- ✅ Rate limiting (có thể cấu hình thêm)
+- ✅ Error handling toàn diện
+
+## ⚠️ Lưu ý quan trọng
+
+1. **Instagram API**: Do Instagram không có API công khai cho việc download content, project sử dụng phương pháp scraping. Instagram có thể thay đổi cấu trúc và chặn requests.
+
+2. **Rate Limiting**: Nên implement rate limiting để tránh bị Instagram block IP.
+
+3. **Legal**: Chỉ sử dụng cho mục đích cá nhân và tôn trọng bản quyền nội dung.
+
+4. **Production**: Khi deploy production, nên:
+   - Sử dụng proxy/VPN rotation
+   - Implement caching
+   - Sử dụng queue cho xử lý nặng
+   - Enable rate limiting
+
+## 🔄 API Endpoints
+
+### POST `/api/instagram/fetch`
+
+Lấy thông tin content từ Instagram URL.
+
+**Request:**
+```json
+{
+  "url": "https://www.instagram.com/p/XXXXX/"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "type": "image",
+    "caption": "Caption text",
+    "thumbnail": "thumbnail_url",
+    "author": "username",
+    "media": [
+      {
+        "type": "image",
+        "url": "media_url"
+      }
+    ]
+  }
+}
+```
+
+### POST `/api/instagram/download`
+
+Download media file.
+
+**Request:**
+```json
+{
+  "url": "media_url",
+  "type": "image|video"
+}
+```
+
+## 🤝 Đóng góp
+
+Mọi đóng góp đều được chào đón! Vui lòng:
+
+1. Fork repository
+2. Tạo branch mới (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Mở Pull Request
+
+## 📝 License
+
+Project này được phân phối dưới [MIT License](LICENSE).
+
+## 👤 Tác giả
+
+Your Name - [@yourusername](https://github.com/yourusername)
+
+## 🙏 Acknowledgments
+
+- [Laravel](https://laravel.com)
+- [Tailwind CSS](https://tailwindcss.com)
+- [Vite](https://vitejs.dev)
+
+## 📞 Liên hệ & Hỗ trợ
+
+Nếu gặp vấn đề hoặc có câu hỏi, vui lòng:
+- Mở Issue trên GitHub
+- Email: your.email@example.com
+
+---
+
+**Disclaimer**: Công cụ này chỉ dành cho mục đích giáo dục và sử dụng cá nhân. Vui lòng tôn trọng bản quyền và quyền riêng tư của người dùng Instagram.
