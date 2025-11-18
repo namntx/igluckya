@@ -30,13 +30,13 @@ class InstagramController extends Controller
                 ], 400);
             }
 
-            // Fetch Instagram content
-            $content = $this->fetchInstagramContent($shortcode);
+            // Fetch Instagram content using multiple methods
+            $content = $this->fetchInstagramContent($shortcode, $url);
 
             if (!$content) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không thể lấy nội dung từ Instagram. Vui lòng thử lại.'
+                    'message' => 'Không thể lấy nội dung từ Instagram. Đây có thể là nội dung riêng tư hoặc đã bị xóa.'
                 ], 400);
             }
 
@@ -50,7 +50,7 @@ class InstagramController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Đã xảy ra lỗi khi xử lý yêu cầu. Vui lòng thử lại.'
+                'message' => 'Đã xảy ra lỗi khi xử lý yêu cầu. Vui lòng thử lại sau.'
             ], 500);
         }
     }
@@ -126,55 +126,134 @@ class InstagramController extends Controller
     }
 
     /**
-     * Fetch Instagram content using Instagram's public API
-     * Note: This is a simplified version. In production, you might want to use:
-     * - RapidAPI Instagram API
-     * - Apify Instagram Scraper
-     * - Or similar services
+     * Fetch Instagram content using multiple methods
+     * Methods tried in order:
+     * 1. GraphQL API (recommended 2025)
+     * 2. Embed scraping
+     * 3. oEmbed API (limited data)
+     *
+     * For production with high reliability, consider:
+     * - RapidAPI Instagram API: https://rapidapi.com/instagram-downloader
+     * - Apify Instagram Scraper: https://apify.com/apilabs/instagram-downloader
      */
-    private function fetchInstagramContent($shortcode)
+    private function fetchInstagramContent($shortcode, $fullUrl)
+    {
+        // Method 1: Try GraphQL API (Working 2025)
+        $content = $this->fetchUsingGraphQL($shortcode);
+        if ($content) {
+            return $content;
+        }
+
+        // Method 2: Try embed scraping
+        $content = $this->fetchUsingEmbedScraping($fullUrl);
+        if ($content) {
+            return $content;
+        }
+
+        // Method 3: Fallback to oEmbed (limited data only)
+        return $this->fetchUsingOEmbed($shortcode);
+    }
+
+    /**
+     * Method 1: Fetch using Instagram GraphQL API (Recommended 2025)
+     * This is the most reliable method as of 2025
+     */
+    private function fetchUsingGraphQL($shortcode)
     {
         try {
-            // Using Instagram's oEmbed API (public, no auth required)
-            $url = "https://www.instagram.com/p/{$shortcode}/?__a=1&__d=dis";
+            // Instagram GraphQL endpoint
+            $graphqlUrl = 'https://www.instagram.com/api/graphql';
+
+            // Common GraphQL document IDs for posts (may need updating periodically)
+            // These are obtained through reverse engineering Instagram's web app
+            $docId = '8845758582119845'; // This may change over time
+
+            $variables = json_encode([
+                'shortcode' => $shortcode,
+                'child_comment_count' => 3,
+                'fetch_comment_count' => 40,
+                'parent_comment_count' => 24,
+                'has_threaded_comments' => true
+            ]);
 
             $response = Http::withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language' => 'en-US,en;q=0.5',
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                'Accept' => '*/*',
+                'Accept-Language' => 'en-US,en;q=0.9',
                 'Accept-Encoding' => 'gzip, deflate, br',
-                'Connection' => 'keep-alive',
-                'Upgrade-Insecure-Requests' => '1',
-                'Sec-Fetch-Dest' => 'document',
-                'Sec-Fetch-Mode' => 'navigate',
-                'Sec-Fetch-Site' => 'none',
-                'Cache-Control' => 'max-age=0',
-            ])->timeout(30)->get($url);
+                'X-IG-App-ID' => '936619743392459', // Instagram web app ID
+                'X-ASBD-ID' => '129477',
+                'X-IG-WWW-Claim' => '0',
+                'Origin' => 'https://www.instagram.com',
+                'Referer' => "https://www.instagram.com/p/{$shortcode}/",
+                'Sec-Fetch-Dest' => 'empty',
+                'Sec-Fetch-Mode' => 'cors',
+                'Sec-Fetch-Site' => 'same-origin',
+            ])->asForm()->post($graphqlUrl, [
+                'doc_id' => $docId,
+                'variables' => $variables,
+            ]);
 
             if (!$response->successful()) {
-                // Fallback to oEmbed API
-                return $this->fetchUsingOEmbed($shortcode);
+                Log::warning('GraphQL fetch failed', ['status' => $response->status()]);
+                return null;
             }
 
             $data = $response->json();
 
-            if (!$data || !isset($data['items']) || empty($data['items'])) {
-                return $this->fetchUsingOEmbed($shortcode);
+            // Parse GraphQL response
+            if (isset($data['data']['xdt_shortcode_media'])) {
+                return $this->parseGraphQLData($data['data']['xdt_shortcode_media']);
+            } elseif (isset($data['data']['shortcode_media'])) {
+                return $this->parseGraphQLData($data['data']['shortcode_media']);
             }
 
-            $item = $data['items'][0];
-
-            return $this->parseInstagramData($item);
+            return null;
 
         } catch (\Exception $e) {
-            Log::error('Instagram content fetch error: ' . $e->getMessage());
-            // Fallback to oEmbed
-            return $this->fetchUsingOEmbed($shortcode);
+            Log::error('GraphQL fetch error: ' . $e->getMessage());
+            return null;
         }
     }
 
     /**
-     * Fallback method using Instagram oEmbed API
+     * Method 2: Fetch by scraping embed page
+     */
+    private function fetchUsingEmbedScraping($url)
+    {
+        try {
+            $embedUrl = $url . 'embed/captioned/';
+
+            $response = Http::withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            ])->timeout(15)->get($embedUrl);
+
+            if (!$response->successful()) {
+                return null;
+            }
+
+            $html = $response->body();
+
+            // Extract JSON data from script tag
+            if (preg_match('/<script type="application\/ld\+json">(.*?)<\/script>/s', $html, $matches)) {
+                $jsonData = json_decode($matches[1], true);
+
+                if ($jsonData && isset($jsonData['@type'])) {
+                    return $this->parseEmbedData($jsonData, $html);
+                }
+            }
+
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error('Embed scraping error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Method 3: Fallback using Instagram oEmbed API (limited data)
      */
     private function fetchUsingOEmbed($shortcode)
     {
@@ -191,8 +270,8 @@ class InstagramController extends Controller
 
             return [
                 'type' => 'post',
+                'caption' => $data['title'] ?? 'Instagram Post',
                 'thumbnail' => $data['thumbnail_url'] ?? null,
-                'title' => $data['title'] ?? 'Instagram Post',
                 'author' => $data['author_name'] ?? 'Unknown',
                 'media' => [
                     [
@@ -210,52 +289,124 @@ class InstagramController extends Controller
     }
 
     /**
-     * Parse Instagram data into a standardized format
+     * Parse GraphQL response data
      */
-    private function parseInstagramData($item)
+    private function parseGraphQLData($item)
     {
         $media = [];
         $type = 'post';
 
-        // Determine content type
-        if (isset($item['video_versions']) && !empty($item['video_versions'])) {
-            $type = 'video';
-            $media[] = [
-                'type' => 'video',
-                'url' => $item['video_versions'][0]['url'],
-                'thumbnail' => $item['image_versions2']['candidates'][0]['url'] ?? null,
-            ];
-        } elseif (isset($item['carousel_media']) && !empty($item['carousel_media'])) {
-            $type = 'carousel';
-            foreach ($item['carousel_media'] as $carouselItem) {
-                if (isset($carouselItem['video_versions'])) {
-                    $media[] = [
-                        'type' => 'video',
-                        'url' => $carouselItem['video_versions'][0]['url'],
-                        'thumbnail' => $carouselItem['image_versions2']['candidates'][0]['url'] ?? null,
-                    ];
-                } else {
-                    $media[] = [
-                        'type' => 'image',
-                        'url' => $carouselItem['image_versions2']['candidates'][0]['url'] ?? null,
-                    ];
+        try {
+            // Check if it's a video
+            if (isset($item['is_video']) && $item['is_video'] === true) {
+                $type = 'video';
+                $media[] = [
+                    'type' => 'video',
+                    'url' => $item['video_url'] ?? null,
+                    'thumbnail' => $item['display_url'] ?? $item['thumbnail_src'] ?? null,
+                ];
+            }
+            // Check if it's a carousel (multiple images/videos)
+            elseif (isset($item['edge_sidecar_to_children']['edges']) && !empty($item['edge_sidecar_to_children']['edges'])) {
+                $type = 'carousel';
+                foreach ($item['edge_sidecar_to_children']['edges'] as $edge) {
+                    $node = $edge['node'];
+                    if (isset($node['is_video']) && $node['is_video'] === true) {
+                        $media[] = [
+                            'type' => 'video',
+                            'url' => $node['video_url'] ?? null,
+                            'thumbnail' => $node['display_url'] ?? null,
+                        ];
+                    } else {
+                        $media[] = [
+                            'type' => 'image',
+                            'url' => $node['display_url'] ?? null,
+                        ];
+                    }
                 }
             }
-        } else {
-            $type = 'image';
-            $media[] = [
-                'type' => 'image',
-                'url' => $item['image_versions2']['candidates'][0]['url'] ?? null,
-            ];
-        }
+            // Single image
+            else {
+                $type = 'image';
+                $media[] = [
+                    'type' => 'image',
+                    'url' => $item['display_url'] ?? $item['thumbnail_src'] ?? null,
+                ];
+            }
 
-        return [
-            'type' => $type,
-            'caption' => $item['caption']['text'] ?? '',
-            'thumbnail' => $item['image_versions2']['candidates'][0]['url'] ?? null,
-            'author' => $item['user']['username'] ?? 'Unknown',
-            'media' => $media,
-            'shortcode' => $item['code'] ?? null,
-        ];
+            // Get caption
+            $caption = '';
+            if (isset($item['edge_media_to_caption']['edges'][0]['node']['text'])) {
+                $caption = $item['edge_media_to_caption']['edges'][0]['node']['text'];
+            } elseif (isset($item['caption'])) {
+                $caption = is_array($item['caption']) ? ($item['caption']['text'] ?? '') : $item['caption'];
+            }
+
+            // Get author
+            $author = $item['owner']['username'] ?? 'Unknown';
+
+            // Get thumbnail
+            $thumbnail = $item['display_url'] ?? $item['thumbnail_src'] ?? null;
+
+            return [
+                'type' => $type,
+                'caption' => $caption,
+                'thumbnail' => $thumbnail,
+                'author' => $author,
+                'media' => $media,
+                'shortcode' => $item['shortcode'] ?? null,
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error parsing GraphQL data: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Parse embed page data
+     */
+    private function parseEmbedData($jsonData, $html)
+    {
+        try {
+            $media = [];
+            $type = 'image';
+
+            // Try to extract media URLs from HTML
+            if (preg_match('/"video_url":"([^"]+)"/', $html, $matches)) {
+                $type = 'video';
+                $videoUrl = json_decode('"' . $matches[1] . '"');
+                $media[] = [
+                    'type' => 'video',
+                    'url' => $videoUrl,
+                    'thumbnail' => $jsonData['thumbnailUrl'] ?? null,
+                ];
+            } elseif (preg_match('/"display_url":"([^"]+)"/', $html, $matches)) {
+                $imageUrl = json_decode('"' . $matches[1] . '"');
+                $media[] = [
+                    'type' => 'image',
+                    'url' => $imageUrl,
+                ];
+            } else {
+                // Fallback to JSON-LD data
+                $media[] = [
+                    'type' => 'image',
+                    'url' => $jsonData['thumbnailUrl'] ?? $jsonData['image'] ?? null,
+                ];
+            }
+
+            return [
+                'type' => $type,
+                'caption' => $jsonData['caption'] ?? $jsonData['articleBody'] ?? '',
+                'thumbnail' => $jsonData['thumbnailUrl'] ?? $jsonData['image'] ?? null,
+                'author' => $jsonData['author']['name'] ?? $jsonData['author']['alternateName'] ?? 'Unknown',
+                'media' => $media,
+                'shortcode' => null,
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error parsing embed data: ' . $e->getMessage());
+            return null;
+        }
     }
 }
