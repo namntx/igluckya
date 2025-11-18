@@ -181,17 +181,39 @@ Tìm các div với id:
 
 ## ⚠️ Lưu ý quan trọng
 
-1. **Instagram API**: Do Instagram không có API công khai cho việc download content, project sử dụng phương pháp scraping. Instagram có thể thay đổi cấu trúc và chặn requests.
+1. **Instagram API**: Project sử dụng multiple methods để fetch content:
+   - GraphQL API (working 2025) - Primary method
+   - Embed scraping - Fallback method
+   - oEmbed API - Limited data
+   - Instagram có thể thay đổi structure bất cứ lúc nào
+   - Document ID của GraphQL cần update định kỳ
 
-2. **Rate Limiting**: Nên implement rate limiting để tránh bị Instagram block IP.
+2. **Rate Limiting**:
+   - Instagram có rate limiting cho mỗi IP
+   - Implement caching để giảm số requests
+   - Sử dụng queue cho background processing
+   - Cân nhắc proxy rotation cho traffic cao
 
-3. **Legal**: Chỉ sử dụng cho mục đích cá nhân và tôn trọng bản quyền nội dung.
+3. **Legal**:
+   - Chỉ sử dụng cho mục đích cá nhân và giáo dục
+   - Tôn trọng bản quyền và quyền riêng tư
+   - Không sử dụng cho commercial mà không có permission
+   - Tuân thủ Instagram Terms of Service
 
-4. **Production**: Khi deploy production, nên:
-   - Sử dụng proxy/VPN rotation
-   - Implement caching
-   - Sử dụng queue cho xử lý nặng
-   - Enable rate limiting
+4. **Production Deployment**: Khi deploy production, nên:
+   - ✅ Sử dụng RapidAPI hoặc Apify cho reliability cao
+   - ✅ Implement Redis caching
+   - ✅ Setup queue workers (Laravel Queue)
+   - ✅ Enable rate limiting middleware
+   - ✅ Sử dụng proxy/VPN rotation
+   - ✅ Monitor logs và errors
+   - ✅ Setup automated alerts
+   - ✅ Regular backup và monitoring
+
+5. **Updating GraphQL Document ID**:
+   - GraphQL doc_id thay đổi khoảng 1-3 tháng một lần
+   - Theo dõi logs để detect khi method này fail
+   - Xem [Troubleshooting](#-troubleshooting) để update doc_id mới
 
 ## 🔄 API Endpoints
 
@@ -235,6 +257,132 @@ Download media file.
   "url": "media_url",
   "type": "image|video"
 }
+```
+
+## 🔍 Instagram Fetching Methods
+
+Project sử dụng 3 phương pháp để lấy Instagram content (theo thứ tự ưu tiên):
+
+### Method 1: GraphQL API ⭐ (Recommended 2025)
+- **Status**: ✅ Working
+- **Ưu điểm**: Không cần authentication, hỗ trợ đầy đủ media types
+- **Nhược điểm**: Document ID có thể thay đổi theo thời gian
+- **Use case**: Primary method cho production
+
+### Method 2: Embed Scraping
+- **Status**: ✅ Working
+- **Ưu điểm**: Đơn giản, ít bị rate limit
+- **Nhược điểm**: Dữ liệu giới hạn, phụ thuộc vào HTML structure
+- **Use case**: Fallback khi GraphQL fail
+
+### Method 3: oEmbed API
+- **Status**: ⚠️ Limited
+- **Ưu điểm**: Official API, ổn định
+- **Nhược điểm**: Chỉ trả về thumbnail và metadata cơ bản
+- **Use case**: Last resort fallback
+
+### Method 4: RapidAPI (Optional - Premium)
+- **Status**: ✅ High Reliability
+- **Ưu điểm**: Độ tin cậy cao, không lo bị block, support tốt
+- **Nhược điểm**: Có phí (free tier giới hạn)
+- **Use case**: Production với yêu cầu uptime cao
+
+👉 Xem hướng dẫn tích hợp RapidAPI: [RAPIDAPI_INTEGRATION.md](RAPIDAPI_INTEGRATION.md)
+
+## 🐛 Troubleshooting
+
+### Lỗi: "Không thể lấy nội dung từ Instagram"
+
+**Nguyên nhân có thể:**
+- Content là private/đã bị xóa
+- Instagram đã thay đổi API structure
+- IP bị rate limit/block
+
+**Giải pháp:**
+1. Kiểm tra URL có hợp lệ và public không
+2. Check logs: `storage/logs/laravel.log`
+3. Thử với URL khác để test
+4. Nếu bị block: đợi vài phút hoặc đổi IP/proxy
+5. Cân nhắc dùng RapidAPI cho stability
+
+### Lỗi: GraphQL document ID không hoạt động
+
+**Giải pháp:**
+1. Mở Instagram web app trong Chrome
+2. Mở DevTools (F12) > Network tab
+3. Filter: "graphql"
+4. Click vào một post
+5. Tìm request POST đến `/api/graphql`
+6. Copy `doc_id` từ Form Data
+7. Update `$docId` trong `InstagramController.php` line 169
+
+### Lỗi: Rate Limited
+
+**Giải pháp:**
+```php
+// Thêm delay giữa các requests
+sleep(2); // 2 seconds delay
+
+// Hoặc implement caching
+Cache::remember('instagram_' . $shortcode, 3600, function() {
+    return $this->fetchContent();
+});
+
+// Hoặc dùng queue
+dispatch(new FetchInstagramJob($url))->delay(now()->addSeconds(5));
+```
+
+### Lỗi: CORS khi test từ frontend
+
+**Giải pháp:**
+```php
+// Add CORS middleware nếu cần
+// config/cors.php
+'paths' => ['api/*'],
+'allowed_origins' => ['*'],
+```
+
+### Performance Issues
+
+**Optimization tips:**
+
+1. **Enable caching:**
+```php
+// In .env
+CACHE_DRIVER=redis
+
+// In InstagramController
+Cache::remember('ig_' . $shortcode, 3600, fn() => $this->fetch());
+```
+
+2. **Use queue for heavy tasks:**
+```bash
+php artisan queue:work
+```
+
+3. **Implement CDN cho media files**
+
+4. **Add rate limiting:**
+```php
+// routes/web.php
+->middleware('throttle:30,1') // 30 requests per minute
+```
+
+### Debugging Tips
+
+```php
+// Enable debug mode
+// .env
+APP_DEBUG=true
+LOG_LEVEL=debug
+
+// Check logs
+tail -f storage/logs/laravel.log
+
+// Test API directly
+curl -X POST http://localhost:8000/api/instagram/fetch \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.instagram.com/p/XXXXX/"}'
 ```
 
 ## 🤝 Đóng góp
